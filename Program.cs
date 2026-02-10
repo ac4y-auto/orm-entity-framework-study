@@ -35,6 +35,10 @@ QueryDemos.RunAll(db);
 LoadingDemos.RunAll(db);
 TransactionDemos.RunAll(db);
 
+// ── Lazy vs Eager: side-by-side comparison (separate DbContexts) ──
+LazyVsEagerTests.TestLazyLoading();
+LazyVsEagerTests.TestEagerLoading();
+
 Console.WriteLine("╔══════════════════════════════════════════════════╗");
 Console.WriteLine("║     All demos completed successfully!            ║");
 Console.WriteLine("╚══════════════════════════════════════════════════╝");
