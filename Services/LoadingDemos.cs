@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using EfCorePoc.Data;
+using EfCorePoc.Extensions;
 
 namespace EfCorePoc.Services;
 
@@ -14,6 +15,7 @@ public static class LoadingDemos
         DemoLazyLoading(db);
         DemoSplitQuery(db);
         DemoFilteredInclude(db);
+        DemoIncludeAll(db);
     }
 
     static void DemoEagerLoading(BookStoreContext db)
@@ -153,5 +155,56 @@ public static class LoadingDemos
         }
 
         Console.WriteLine();
+    }
+
+    static void DemoIncludeAll(BookStoreContext db)
+    {
+        Console.WriteLine("── IncludeAll (recursive metadata-based) ──");
+        Console.WriteLine("  Automatically discovers and includes ALL navigation properties");
+        Console.WriteLine("  using EF Core IModel metadata. No manual Include chains needed!\n");
+
+        // ── Show discovered paths ──
+        var paths = QueryableExtensions.GetIncludeAllPaths<Models.Author>(db);
+        Console.WriteLine("  Discovered include paths for Author:");
+        foreach (var path in paths)
+            Console.WriteLine($"    → {path}");
+
+        // ── Load entire tree with one call ──
+        Console.WriteLine($"\n  Loading with: db.Authors.IncludeAll(db).ToList()");
+        var authors = db.Authors.IncludeAll(db).ToList();
+
+        Console.WriteLine($"  Result: {authors.Count} authors with full tree:\n");
+        foreach (var author in authors)
+        {
+            Console.WriteLine($"  Author: {author.Name}");
+            foreach (var book in author.Books)
+            {
+                var tagStr = book.Tags.Any()
+                    ? $" [{string.Join(", ", book.Tags.Select(t => t.Name))}]"
+                    : "";
+                Console.WriteLine($"    Book: '{book.Title}'{tagStr}");
+                foreach (var review in book.Reviews)
+                    Console.WriteLine($"      Review: {review.ReviewerName} - {review.Rating}/5");
+            }
+        }
+
+        // ── Depth limit exception demo ──
+        Console.WriteLine("\n  Testing depth limit (maxDepth=1)...");
+        try
+        {
+            db.Authors.IncludeAll(db, maxDepth: 1).ToList();
+            Console.WriteLine("  No exception (model fits within limit)");
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.WriteLine($"  EXCEPTION: {ex.Message}");
+        }
+
+        // ── Compare with manual Include ──
+        Console.WriteLine("\n  Comparison:");
+        Console.WriteLine("    Manual:  db.Authors.Include(a => a.Books).ThenInclude(b => b.Reviews)");
+        Console.WriteLine("                       .Include(a => a.Books).ThenInclude(b => b.Tags)");
+        Console.WriteLine("    Auto:    db.Authors.IncludeAll(db)");
+        Console.WriteLine("    Result:  identical! But IncludeAll adapts if model changes.\n");
     }
 }
